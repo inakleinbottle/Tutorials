@@ -14,17 +14,20 @@ DEFAULT_ENV_DIR = osp.expanduser(osp.join('~', 'PyNotebook'))
     
 CONVENIENCE_URL = 'git+https://github.com/inakleinbottle/mathconvenience.git'
 
+def get_convenience(ex):
+    from urllib.request import urlopen
+    from tempfile import TemporaryDirectory
+    from zipfile import ZipFile
+    from io import BytesIO
+    
+    url = 'https://github.com/inakleinbottle/mathconvenience/archive/master.zip'
+    Zip = ZipFile(BytesIO(urlopen(url).read()))
+    with TemporaryDirectory() as tempdir:
+        Zip.extractall(tempdir)
+        pip_install(ex, osp.join(tempdir, 'mathconvenience-master'))
+        
 
-class NotebookEnvBuilder(EnvBuilder):
-    '''
-
-
-    '''
-    def __init__(self, *args, **kwargs):
-        prompt = kwargs.pop('prompt', 'pynb')
-        super().__init__(*args, prompt=prompt, **kwargs)
-
-    def reader(self, stream):
+def reader(stream):
         while True:
             s = stream.readline()
             if not s:
@@ -34,32 +37,40 @@ class NotebookEnvBuilder(EnvBuilder):
             sys.stderr.flush()
         stream.close()
 
-    def pip_install(self, package, flags=tuple()):
-
-        cmd = [context.env_exe, '-m', 'pip', 'install', *flags, package]
-        sys.stderr.write('Downloading %s.\n' % package)
+def pip_install(ex, *package, flags=tuple()):
+        cmd = [ex, '-m', 'pip', 'install', *flags, *package]
+        sys.stderr.write('Downloading and installing %s.\n' %
+                         ', '.join(package))
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
-        stdout_reader = Thread(target=self.reader,
+        stdout_reader = Thread(target=reader,
                                args=(p.stdout))
-        stderr_reader = Thread(target=self.reader,
+        stderr_reader = Thread(target=reader,
                                args=(p.stderr))
         stdout_reader.start()
         stderr_reader.start()
         p.wait()
         stdout_reader.join()
         stderr_reader.join()
-        sys.stderr.write('Done.')
+        sys.stderr.write('Done.\n')
 
+
+class NotebookEnvBuilder(EnvBuilder):
+
+    def __init__(self, *args, **kwargs):
+        prompt = kwargs.pop('prompt', 'pynb')
+        super().__init__(*args, prompt=prompt, **kwargs)
 
     def post_setup(self, context):
-        self.pip_install('pip', flags=('--upgrade',))
-        self.pip_install('numpy')
-        self.pip_install('scipy')
-        self.pip_install('matplotlib')
-        self.pip_install(CONVENIENCE_URL)
-        self.pip_install('Jupyter')
+        pip_install(context.env_exe, 'pip', flags=('--upgrade',))
+        pip_install(context.env_exe, 'numpy', 'scipy', 'matplotlib','Jupyter')
 
-        os.mkdir('notebooks')
+        try:
+            self.pip_install(context.env_exe, CONVENIENCE_URL)
+        except:
+            get_convenience(context.env_exe)
+            
+
+        os.mkdir(osp.join(path, 'notebooks'))
 
       
 
