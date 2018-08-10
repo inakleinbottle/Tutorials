@@ -10,7 +10,7 @@ from threading import Thread
 from venv import EnvBuilder
 
 
-DEFAULT_ENV_DIR = osp.expanduser(osp.join('~', 'PyNotebook'))
+DEFAULT_ENV_DIR = osp.expanduser(osp.join('~', 'Documents', 'PyNotebook'))
     
 CONVENIENCE_URL = 'git+https://github.com/inakleinbottle/mathconvenience.git'
 
@@ -43,9 +43,9 @@ def pip_install(ex, *package, flags=tuple()):
                          ', '.join(package))
         p = Popen(cmd, stdout=PIPE, stderr=PIPE)
         stdout_reader = Thread(target=reader,
-                               args=(p.stdout))
+                               args=(p.stdout,))
         stderr_reader = Thread(target=reader,
-                               args=(p.stderr))
+                               args=(p.stderr,))
         stdout_reader.start()
         stderr_reader.start()
         p.wait()
@@ -69,8 +69,6 @@ class NotebookEnvBuilder(EnvBuilder):
         except:
             get_convenience(context.env_exe)
             
-
-        os.mkdir(osp.join(path, 'notebooks'))
 
       
 
